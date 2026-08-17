@@ -1,0 +1,36 @@
+# mb minimal configuration
+# Only essential modules: system, user, ssh, firewall.
+# No CrowdSec, no Docker, no MOTD. Use for a minimal secure setup.
+# Use with: mb init --config config/minimal.yaml
+
+modules:
+  system: true
+  user: true
+  ssh: true
+  firewall: true
+  crowdsec: false
+  kernel: false
+  autoupdate: false
+  docker: false
+  motd: false
+
+# System settings
+timezone: UTC
+hostname: ""
+
+# User settings
+username: ""
+ssh_key: ""
+sudo_nopasswd: false
+
+# SSH settings
+ssh_port: ""
+allow_users: ""
+
+# Firewall settings
+extra_ports: []
+
+# Kernel settings (not run in minimal, but here for reference)
+enable_bbr: true
+enable_tcp_fast_open: false
+disable_ipv6: false

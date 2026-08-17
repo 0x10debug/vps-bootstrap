@@ -1,0 +1,48 @@
+# mb example custom configuration
+# Copy this file and customize for your server.
+# Use with: mb init --config my-vps.yaml
+
+modules:
+  system: true
+  user: true
+  ssh: true
+  firewall: true
+  crowdsec: true
+  kernel: true
+  autoupdate: true
+  docker: true
+  motd: true
+
+# System settings
+timezone: "Asia/Shanghai"        # Set your timezone
+hostname: "my-server"            # Set your hostname
+
+# User settings
+username: "myuser"              # Non-root username
+ssh_key: ""                      # Paste your SSH public key here, or leave empty to be prompted
+sudo_nopasswd: false             # true = passwordless sudo, false = password required
+
+# SSH settings
+ssh_port: "22222"               # Use a non-standard port
+allow_users: "myuser"            # Space-separated list of allowed SSH users
+
+# Firewall settings
+extra_ports: []                  # Additional ports to allow, e.g. ["5432/tcp", "6379/tcp"]
+
+# CrowdSec settings
+crowdsec_whitelist_ip: ""        # Your office/home IP to whitelist (auto-detected if empty)
+cloudflare_bouncer: false        # true = install Cloudflare bouncer (requires Cloudflare account)
+
+# Kernel settings
+enable_bbr: true                 # BBR congestion control (recommended)
+enable_tcp_fast_open: false      # TCP Fast Open (experimental)
+disable_ipv6: false              # true = disable IPv6
+
+# Docker settings
+docker_data_dir: ""              # Custom data directory, e.g. "/data/docker" (empty = default)
+docker_log_max_size: "50m"       # Log file max size before rotation
+docker_log_max_file: 3           # Number of log files to keep
+
+# Auto-update settings
+auto_reboot: false               # true = auto-reboot for security updates that require it
+update_notification_webhook: ""  # Webhook URL for update notifications (e.g. Discord/Slack)

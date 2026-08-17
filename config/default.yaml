@@ -1,0 +1,48 @@
+# mb default configuration
+# All modules enabled with secure defaults.
+# Use with: mb init --config config/default.yaml
+
+modules:
+  system: true
+  user: true
+  ssh: true
+  firewall: true
+  crowdsec: true
+  kernel: true
+  autoupdate: true
+  docker: true
+  motd: true
+
+# System settings
+timezone: UTC
+hostname: ""
+
+# User settings
+username: ""
+ssh_key: ""
+sudo_nopasswd: false
+
+# SSH settings
+ssh_port: ""
+allow_users: ""
+
+# Firewall settings
+extra_ports: []
+
+# CrowdSec settings
+crowdsec_whitelist_ip: ""
+cloudflare_bouncer: false
+
+# Kernel settings
+enable_bbr: true
+enable_tcp_fast_open: false
+disable_ipv6: false
+
+# Docker settings
+docker_data_dir: ""
+docker_log_max_size: "50m"
+docker_log_max_file: 3
+
+# Auto-update settings
+auto_reboot: false
+update_notification_webhook: ""

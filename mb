@@ -1,0 +1,399 @@
+#!/usr/bin/env bash
+# mb — mb command
+# One-command VPS initialization and security hardening.
+#
+# Usage:
+#   mb init                    Interactive initialization (default)
+#   mb init --config FILE      Declarative config-driven initialization
+#   mb init --module LIST      Run only specified modules (comma-separated)
+#   mb status                  Show current hardening status
+#   mb update                  Update mb and re-apply config
+#   mb export                  Export current configuration (for migration)
+#   mb rollback [module]       Rollback a module (or all) to previous config
+#   mb help                    Show help
+
+set -euo pipefail
+
+# ── Resolve script directory ─────────────────────────────────────────────────
+
+MB_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# ── Load libraries ───────────────────────────────────────────────────────────
+
+# shellcheck source=lib/common.sh
+source "${MB_SCRIPT_DIR}/lib/common.sh"
+# shellcheck source=lib/os.sh
+source "${MB_SCRIPT_DIR}/lib/os.sh"
+# shellcheck source=lib/backup.sh
+source "${MB_SCRIPT_DIR}/lib/backup.sh"
+# shellcheck source=lib/rollback.sh
+source "${MB_SCRIPT_DIR}/lib/rollback.sh"
+
+# Set module directory for loader
+mb_set_module_dir "${MB_SCRIPT_DIR}/modules"
+
+# ── All available modules (in recommended order) ────────────────────────────
+
+MB_ALL_MODULES=(system user ssh firewall crowdsec kernel autoupdate docker motd)
+
+# ── Help ─────────────────────────────────────────────────────────────────────
+
+mb_show_help() {
+    cat <<'HELP'
+mb — one-command VPS initialization and security hardening
+
+USAGE:
+    mb init [OPTIONS]              Initialize and harden the server
+    mb status                      Show hardening status
+    mb update                      Update mb and re-apply configuration
+    mb export                      Export configuration for migration
+    mb rollback [MODULE]           Rollback module (or all) to previous state
+    mb help                        Show this help
+
+OPTIONS for init:
+    --config FILE                  Use declarative config file (YAML-like)
+    --module LIST                  Run only specified modules (comma-separated)
+    --yes                          Accept all defaults (non-interactive)
+    --dry-run                      Show what would be done without executing
+
+MODULES:
+    system       System update and base tools
+    user         Non-root user and SSH key setup
+    ssh          SSH hardening (disable root, disable password, change port)
+    firewall     Firewall configuration (UFW or nftables)
+    crowdsec     CrowdSec intrusion prevention (replaces fail2ban)
+    kernel       Kernel parameter tuning (BBR, file descriptors, network)
+    autoupdate   Automatic security updates
+    docker       Docker Engine + Docker Compose installation
+    motd         MOTD status dashboard (shown on SSH login)
+
+EXAMPLES:
+    mb init                        # Interactive, all modules with defaults
+    mb init --module system,ssh    # Only system update and SSH hardening
+    mb init --config my-vps.yaml   # Declarative, no interaction
+    mb status                      # See what's done and what's pending
+    mb rollback ssh                # Undo SSH hardening changes
+
+ENVIRONMENT:
+    /etc/mb/env.sh                 Shared environment variables
+    /etc/mb-backup/                Configuration backups (for rollback)
+    /var/lib/mb/                   State files (module completion markers)
+
+HELP
+}
+
+# ── Status ───────────────────────────────────────────────────────────────────
+
+mb_cmd_status() {
+    mb_detect_os
+
+    mb_step "Server hardening status"
+    echo ""
+
+    # OS info
+    echo "  OS:         ${MB_OS_DISTRO} ${MB_OS_VERSION} (${MB_OS_FAMILY})"
+    echo "  Hostname:   $(hostname 2>/dev/null)"
+    echo "  Uptime:     $(uptime -p 2>/dev/null | sed 's/up //' || echo 'unknown')"
+    echo ""
+
+    # Module status
+    mb_step "Module status:"
+    for mod in "${MB_ALL_MODULES[@]}"; do
+        if mb_is_done "$mod"; then
+            local done_time
+            done_time=$(cat "${MB_STATE_DIR}/${mod}.done" 2>/dev/null || echo "?")
+            echo "  ✅ ${mod}  (completed: ${done_time})"
+        else
+            echo "  ❌ ${mod}  (not run)"
+        fi
+    done
+
+    echo ""
+
+    # Key configuration
+    mb_step "Key configuration:"
+    local ssh_port
+    ssh_port=$(mb_env_get MB_SSH_PORT)
+    echo "  SSH port:       ${ssh_port:-default (22)}"
+    echo "  SSH user:       $(mb_env_get MB_USERNAME || echo 'not set')"
+    echo "  Firewall:       $(mb_env_get MB_FIREWALL || echo 'not configured')"
+    echo "  CrowdSec:       $(mb_env_get MB_CROWDSEC || echo 'not installed')"
+    echo "  Docker:         $(mb_env_get MB_DOCKER || echo 'not installed')"
+    echo "  Timezone:       $(mb_env_get MB_TIMEZONE || echo 'not set')"
+
+    echo ""
+
+    # Backups available
+    if [ -d "$MB_BACKUP_DIR" ]; then
+        mb_step "Rollback points available:"
+        mb_rollback_list
+    fi
+}
+
+# ── Init ─────────────────────────────────────────────────────────────────────
+
+mb_cmd_init() {
+    local config_file=""
+    local module_list=""
+    local non_interactive=false
+    local dry_run=false
+
+    # Parse arguments
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --config)
+                config_file="$2"
+                shift 2
+                ;;
+            --module)
+                module_list="$2"
+                shift 2
+                ;;
+            --yes|-y)
+                non_interactive=true
+                shift
+                ;;
+            --dry-run)
+                dry_run=true
+                shift
+                ;;
+            *)
+                mb_die "Unknown option: $1. Run 'mb help' for usage."
+                ;;
+        esac
+    done
+
+    # Pre-flight checks
+    mb_check_root
+    mb_check_not_root_session
+
+    # Detect OS
+    mb_detect_os
+    if ! mb_supports_os; then
+        mb_die "Unsupported OS: ${MB_OS_DISTRO} ${MB_OS_VERSION}. Supported: Ubuntu 22.04+, Debian 12+, Alpine 3.22+."
+    fi
+
+    # Load config file if provided
+    if [ -n "$config_file" ]; then
+        if [ ! -f "$config_file" ]; then
+            mb_die "Config file not found: $config_file"
+        fi
+        mb_info "Loading config: $config_file"
+        _mb_load_config "$config_file"
+        non_interactive=true
+    fi
+
+    # Determine which modules to run
+    local modules_to_run=()
+    if [ -n "$module_list" ]; then
+        IFS=',' read -ra modules_to_run <<< "$module_list"
+        # Validate module names
+        for mod in "${modules_to_run[@]}"; do
+            local valid=false
+            for valid_mod in "${MB_ALL_MODULES[@]}"; do
+                if [ "$mod" = "$valid_mod" ]; then
+                    valid=true
+                    break
+                fi
+            done
+            if [ "$valid" = false ]; then
+                mb_die "Unknown module: $mod. Valid modules: ${MB_ALL_MODULES[*]}"
+            fi
+        done
+    else
+        modules_to_run=("${MB_ALL_MODULES[@]}")
+    fi
+
+    # Banner
+    echo ""
+    echo -e "${MB_BOLD}╔══════════════════════════════════════════════════════╗${MB_RESET}"
+    echo -e "${MB_BOLD}║  mb — VPS Initialization & Security Hardening        ║${MB_RESET}"
+    echo -e "${MB_BOLD}║  Version ${MB_VERSION}                                      ║${MB_RESET}"
+    echo -e "${MB_BOLD}╚══════════════════════════════════════════════════════╝${MB_RESET}"
+    echo ""
+
+    if [ "$dry_run" = true ]; then
+        mb_info "DRY RUN — no changes will be made"
+        echo ""
+    fi
+
+    mb_info "OS: ${MB_OS_DISTRO} ${MB_OS_VERSION}"
+    mb_info "Modules: ${modules_to_run[*]}"
+    echo ""
+
+    if [ "$non_interactive" = false ]; then
+        if ! mb_ask "Proceed with initialization?" "y"; then
+            mb_info "Aborted."
+            exit 0
+        fi
+    fi
+
+    # Save state before changes
+    mb_backup_save_state "init"
+
+    # Run modules
+    local failed=0
+    for mod in "${modules_to_run[@]}"; do
+        echo ""
+        if [ "$dry_run" = true ]; then
+            mb_info "[dry-run] Would run module: $mod"
+            continue
+        fi
+
+        # Load and run module
+        if ! mb_load_module "$mod"; then
+            failed=$((failed + 1))
+            continue
+        fi
+
+        # Call the module function
+        local func_name="mb_module_${mod}"
+        if ! "$func_name"; then
+            mb_error "Module failed: $mod"
+            failed=$((failed + 1))
+        fi
+    done
+
+    # Summary
+    echo ""
+    mb_step "Initialization complete"
+    local total=${#modules_to_run[@]}
+    local success=$((total - failed))
+    echo "  Modules run:    $total"
+    echo "  Succeeded:      $success"
+    echo "  Failed:         $failed"
+
+    if [ "$failed" -gt 0 ]; then
+        mb_warn "Some modules failed. Check logs above."
+        mb_warn "You can re-run failed modules: mb init --module <name>"
+    fi
+
+    # Next steps guidance
+    echo ""
+    mb_step "Next steps"
+    echo "  Your server is now hardened. Here's what you can do next:"
+    echo ""
+    echo "  → Deploy apps:     https://github.com/0x10debug/compose-recipes"
+    echo "  → Set up network:  https://github.com/0x10debug/network-toolkit"
+    echo "  → Monitor:         https://github.com/0x10debug/monitor-stack"
+    echo "  → Backup:          https://github.com/0x10debug/backup-kit"
+    echo "  → Security audit:  https://github.com/0x10debug/security-audit"
+    echo ""
+    echo "  Run 'mb status' to check your current hardening state."
+}
+
+# ── Config loader (simple YAML-like parser) ──────────────────────────────────
+
+_mb_load_config() {
+    local file="$1"
+    # Simple parser: reads key: value pairs, sets MB_CONFIG_<KEY> env vars
+    # Supports nested sections via indentation (sections are ignored, keys are global)
+    while IFS= read -r line || [ -n "$line" ]; do
+        # Skip comments and empty lines
+        [[ "$line" =~ ^[[:space:]]*# ]] && continue
+        [[ -z "${line// }" ]] && continue
+        # Skip section headers (lines ending with :)
+        [[ "$line" =~ :[[:space:]]*$ ]] && continue
+        # Parse key: value
+        if [[ "$line" =~ ^[[:space:]]*([a-zA-Z_][a-zA-Z0-9_]*)[[:space:]]*:[[:space:]]*(.*)$ ]]; then
+            local key="${BASH_REMATCH[1]}"
+            local value="${BASH_REMATCH[2]}"
+            # Strip quotes
+            value="${value#\"}"
+            value="${value%\"}"
+            value="${value#\'}"
+            value="${value%\'}"
+            # Convert key to uppercase and set as MB_CONFIG_<KEY>
+            local env_key
+            env_key="MB_CONFIG_$(echo "$key" | tr '[:lower:]' '[:upper:]')"
+            export "$env_key"="$value"
+        fi
+    done < "$file"
+}
+
+# ── Export ───────────────────────────────────────────────────────────────────
+
+mb_cmd_export() {
+    mb_step "Exporting configuration for migration"
+    echo ""
+
+    local export_file="mb-export-$(date '+%Y%m%d-%H%M%S').tar.gz"
+
+    # Collect config files
+    local tmp_dir
+    tmp_dir=$(mktemp -d)
+
+    # Copy env file
+    [ -f "$MB_ENV_FILE" ] && cp "$MB_ENV_FILE" "$tmp_dir/"
+
+    # Copy state files
+    [ -d "$MB_STATE_DIR" ] && cp -r "$MB_STATE_DIR" "$tmp_dir/state"
+
+    # Copy mb config directory
+    [ -d "$MB_CONFIG_DIR" ] && cp -r "$MB_CONFIG_DIR" "$tmp_dir/mb-config"
+
+    # Create a manifest
+    {
+        echo "# mb export manifest"
+        echo "exported_at: $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+        echo "mb_version: ${MB_VERSION}"
+        echo "os: $(mb_env_get MB_OS_DISTRO || echo 'unknown')"
+        echo "hostname: $(hostname 2>/dev/null)"
+        echo ""
+        echo "modules_done:"
+        if [ -d "$MB_STATE_DIR" ]; then
+            for f in "$MB_STATE_DIR"/*.done; do
+                [ -f "$f" ] || continue
+                echo "  - $(basename "$f" .done): $(cat "$f")"
+            done
+        fi
+    } > "$tmp_dir/manifest.yaml"
+
+    # Create archive
+    tar czf "$export_file" -C "$tmp_dir" .
+    rm -rf "$tmp_dir"
+
+    mb_success "Export created: $export_file"
+    mb_detail "Transfer this file to your new VPS and run 'mb init --config manifest.yaml'"
+}
+
+# ── Update ───────────────────────────────────────────────────────────────────
+
+mb_cmd_update() {
+    mb_step "Updating mb"
+
+    # Update mb itself
+    if [ -d "${MB_SCRIPT_DIR}/.git" ]; then
+        mb_info "Updating mb from git..."
+        (cd "$MB_SCRIPT_DIR" && git pull --ff-only 2>/dev/null) || mb_warn "Could not update from git"
+    else
+        mb_detail "mb not installed from git, skipping self-update"
+    fi
+
+    # Re-run system update
+    mb_info "Re-running system update..."
+    mb_detect_os
+    mb_pkg_update
+    mb_pkg_upgrade
+
+    mb_success "Update complete"
+}
+
+# ── Main ─────────────────────────────────────────────────────────────────────
+
+main() {
+    local command="${1:-help}"
+    shift || true
+
+    case "$command" in
+        init)     mb_cmd_init "$@" ;;
+        status)   mb_cmd_status "$@" ;;
+        update)   mb_cmd_update "$@" ;;
+        export)   mb_cmd_export "$@" ;;
+        rollback) mb_rollback "${1:-all}" ;;
+        help|-h|--help) mb_show_help ;;
+        *) mb_die "Unknown command: $command. Run 'mb help' for usage." ;;
+    esac
+}
+
+main "$@"
