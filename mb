@@ -10,6 +10,7 @@
 #   mb update                  Update mb and re-apply config
 #   mb export                  Export current configuration (for migration)
 #   mb rollback [module]       Rollback a module (or all) to previous config
+#   mb audit                   Run CIS alignment + partition checks (read-only)
 #   mb help                    Show help
 
 set -euo pipefail
@@ -34,7 +35,7 @@ mb_set_module_dir "${MB_SCRIPT_DIR}/modules"
 
 # ── All available modules (in recommended order) ────────────────────────────
 
-MB_ALL_MODULES=(system user ssh firewall crowdsec kernel autoupdate docker motd)
+MB_ALL_MODULES=(system user ssh firewall crowdsec kernel autoupdate docker motd cis_align partition_check)
 
 # ── Help ─────────────────────────────────────────────────────────────────────
 
@@ -48,6 +49,7 @@ USAGE:
     mb update                      Update mb and re-apply configuration
     mb export                      Export configuration for migration
     mb rollback [MODULE]           Rollback module (or all) to previous state
+    mb audit                       Run CIS alignment + partition checks (read-only)
     mb help                        Show this help
 
 OPTIONS for init:
@@ -66,6 +68,8 @@ MODULES:
     autoupdate   Automatic security updates
     docker       Docker Engine + Docker Compose installation
     motd         MOTD status dashboard (shown on SSH login)
+    cis_align    CIS Benchmark v14.0 L1 alignment report (read-only audit)
+    partition_check  Partition isolation + mount option check (read-only)
 
 EXAMPLES:
     mb init                        # Interactive, all modules with defaults
@@ -73,6 +77,7 @@ EXAMPLES:
     mb init --config my-vps.yaml   # Declarative, no interaction
     mb status                      # See what's done and what's pending
     mb rollback ssh                # Undo SSH hardening changes
+    mb audit                       # Run CIS + partition checks without changes
 
 ENVIRONMENT:
     /etc/mb/env.sh                 Shared environment variables
@@ -317,7 +322,8 @@ mb_cmd_export() {
     mb_step "Exporting configuration for migration"
     echo ""
 
-    local export_file="mb-export-$(date '+%Y%m%d-%H%M%S').tar.gz"
+    local export_file
+    export_file="mb-export-$(date '+%Y%m%d-%H%M%S').tar.gz"
 
     # Collect config files
     local tmp_dir
@@ -379,6 +385,44 @@ mb_cmd_update() {
     mb_success "Update complete"
 }
 
+# ── Audit (read-only CIS alignment + partition check) ────────────────────────
+
+mb_cmd_audit() {
+    mb_check_root
+    mb_detect_os
+
+    local audit_modules=(cis_align partition_check)
+    local failed=0
+
+    echo ""
+    echo -e "${MB_BOLD}╔══════════════════════════════════════════════════════╗${MB_RESET}"
+    echo -e "${MB_BOLD}║  mb — Security Audit (CIS v14.0 L1)                  ║${MB_RESET}"
+    echo -e "${MB_BOLD}║  Version ${MB_VERSION}                                      ║${MB_RESET}"
+    echo -e "${MB_BOLD}╚══════════════════════════════════════════════════════╝${MB_RESET}"
+    echo ""
+    mb_info "Read-only audit: no system changes will be made."
+    echo ""
+
+    for mod in "${audit_modules[@]}"; do
+        if ! mb_load_module "$mod"; then
+            failed=$((failed + 1))
+            continue
+        fi
+        local func_name="mb_module_${mod}"
+        if ! "$func_name"; then
+            mb_error "Audit module failed: $mod"
+            failed=$((failed + 1))
+        fi
+    done
+
+    echo ""
+    if [ "$failed" -gt 0 ]; then
+        mb_warn "Audit completed with ${failed} module failure(s)."
+    else
+        mb_success "Audit complete."
+    fi
+}
+
 # ── Main ─────────────────────────────────────────────────────────────────────
 
 main() {
@@ -391,6 +435,7 @@ main() {
         update)   mb_cmd_update "$@" ;;
         export)   mb_cmd_export "$@" ;;
         rollback) mb_rollback "${1:-all}" ;;
+        audit)    mb_cmd_audit "$@" ;;
         help|-h|--help) mb_show_help ;;
         *) mb_die "Unknown command: $command. Run 'mb help' for usage." ;;
     esac
