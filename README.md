@@ -71,6 +71,9 @@ mb help                          # Show all commands
 | `autoupdate` | Automatic security updates (Docker excluded) |
 | `docker` | Docker Engine + Compose v2 with log rotation |
 | `motd` | Status dashboard on every SSH login |
+| `cis_align` | CIS Benchmark v14.0 L1 alignment report (read-only audit) |
+| `partition_check` | Partition isolation + mount option check (read-only) |
+| `auditd` | auditd install + file integrity monitoring + privileged command audit |
 
 ## Configuration
 

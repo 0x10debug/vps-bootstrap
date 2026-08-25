@@ -10,7 +10,7 @@
 #   mb update                  Update mb and re-apply config
 #   mb export                  Export current configuration (for migration)
 #   mb rollback [module]       Rollback a module (or all) to previous config
-#   mb audit                   Run CIS alignment + partition checks (read-only)
+#   mb audit                   Run CIS alignment + partition + auditd checks (read-only)
 #   mb help                    Show help
 
 set -euo pipefail
@@ -35,7 +35,7 @@ mb_set_module_dir "${MB_SCRIPT_DIR}/modules"
 
 # ── All available modules (in recommended order) ────────────────────────────
 
-MB_ALL_MODULES=(system user ssh firewall crowdsec kernel autoupdate docker motd cis_align partition_check)
+MB_ALL_MODULES=(system user ssh firewall crowdsec kernel autoupdate docker motd cis_align partition_check auditd)
 
 # ── Help ─────────────────────────────────────────────────────────────────────
 
@@ -49,7 +49,7 @@ USAGE:
     mb update                      Update mb and re-apply configuration
     mb export                      Export configuration for migration
     mb rollback [MODULE]           Rollback module (or all) to previous state
-    mb audit                       Run CIS alignment + partition checks (read-only)
+    mb audit                       Run CIS alignment + partition + auditd checks (read-only)
     mb help                        Show this help
 
 OPTIONS for init:
@@ -70,6 +70,7 @@ MODULES:
     motd         MOTD status dashboard (shown on SSH login)
     cis_align    CIS Benchmark v14.0 L1 alignment report (read-only audit)
     partition_check  Partition isolation + mount option check (read-only)
+    auditd       auditd install + file integrity monitoring + privileged command audit
 
 EXAMPLES:
     mb init                        # Interactive, all modules with defaults
@@ -391,7 +392,7 @@ mb_cmd_audit() {
     mb_check_root
     mb_detect_os
 
-    local audit_modules=(cis_align partition_check)
+    local audit_modules=(cis_align partition_check auditd)
     local failed=0
 
     echo ""
@@ -409,6 +410,10 @@ mb_cmd_audit() {
             continue
         fi
         local func_name="mb_module_${mod}"
+        # Use the read-only _audit variant when available (e.g. auditd)
+        if declare -f "mb_module_${mod}_audit" >/dev/null 2>&1; then
+            func_name="mb_module_${mod}_audit"
+        fi
         if ! "$func_name"; then
             mb_error "Audit module failed: $mod"
             failed=$((failed + 1))

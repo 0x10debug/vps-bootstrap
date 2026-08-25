@@ -71,6 +71,9 @@ mb help                          # 显示所有命令
 | `autoupdate` | 自动安全更新（Docker 除外） |
 | `docker` | Docker Engine + Compose v2，配置日志轮转 |
 | `motd` | 每次 SSH 登录显示状态仪表盘 |
+| `cis_align` | CIS Benchmark v14.0 L1 对齐报告（只读审计） |
+| `partition_check` | 分区隔离 + 挂载选项检查（只读） |
+| `auditd` | auditd 安装 + 关键文件完整性监控 + 特权命令审计 |
 
 ## 配置
 
