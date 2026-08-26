@@ -392,7 +392,7 @@ mb_cmd_audit() {
     mb_check_root
     mb_detect_os
 
-    local audit_modules=(cis_align partition_check auditd)
+    local audit_modules=(cis_align partition_check auditd crowdsec)
     local failed=0
 
     echo ""
