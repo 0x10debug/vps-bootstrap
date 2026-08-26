@@ -66,7 +66,7 @@ mb help                          # 显示所有命令
 | `user` | 非 root 用户、sudo、SSH 密钥 |
 | `ssh` | SSH 加固（禁用 root、禁用密码、改端口） |
 | `firewall` | UFW 或 nftables（拒绝入站，允许出站，开 SSH/HTTP/HTTPS） |
-| `crowdsec` | CrowdSec 安装，SSH 和 Web 攻击检测集合 |
+| `crowdsec` | CrowdSec 入侵防护：SSH/Web/端口扫描场景，防火墙/nginx/Cloudflare bouncer，auditd 日志联动，邮件与 webhook 告警 |
 | `kernel` | BBR、文件描述符、网络栈调优 |
 | `autoupdate` | 自动安全更新（Docker 除外） |
 | `docker` | Docker Engine + Compose v2，配置日志轮转 |

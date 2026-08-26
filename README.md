@@ -66,7 +66,7 @@ mb help                          # Show all commands
 | `user` | Non-root user, sudo, SSH key |
 | `ssh` | SSH hardening (disable root, disable password, change port) |
 | `firewall` | UFW or nftables (deny incoming, allow outgoing, open SSH/HTTP/HTTPS) |
-| `crowdsec` | CrowdSec installation with SSH and web attack collections |
+| `crowdsec` | CrowdSec intrusion prevention: SSH/web/port-scan scenarios, firewall/nginx/Cloudflare bouncers, auditd log integration, email & webhook alerts |
 | `kernel` | BBR, file descriptors, network stack tuning |
 | `autoupdate` | Automatic security updates (Docker excluded) |
 | `docker` | Docker Engine + Compose v2 with log rotation |
