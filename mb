@@ -10,7 +10,7 @@
 #   mb update                  Update mb and re-apply config
 #   mb export                  Export current configuration (for migration)
 #   mb rollback [module]       Rollback a module (or all) to previous config
-#   mb audit                   Run CIS alignment + partition + auditd checks (read-only)
+#   mb audit                   Run CIS + partition + auditd + crowdsec + apparmor + auto-updates checks (read-only)
 #   mb help                    Show help
 
 set -euo pipefail
@@ -35,7 +35,7 @@ mb_set_module_dir "${MB_SCRIPT_DIR}/modules"
 
 # ── All available modules (in recommended order) ────────────────────────────
 
-MB_ALL_MODULES=(system user ssh firewall crowdsec kernel autoupdate docker motd cis_align partition_check auditd)
+MB_ALL_MODULES=(system user ssh firewall crowdsec kernel autoupdate docker motd cis_align partition_check auditd apparmor auto_updates)
 
 # ── Help ─────────────────────────────────────────────────────────────────────
 
@@ -49,7 +49,7 @@ USAGE:
     mb update                      Update mb and re-apply configuration
     mb export                      Export configuration for migration
     mb rollback [MODULE]           Rollback module (or all) to previous state
-    mb audit                       Run CIS alignment + partition + auditd checks (read-only)
+    mb audit                       Run CIS + partition + auditd + crowdsec + apparmor + auto-updates checks (read-only)
     mb help                        Show this help
 
 OPTIONS for init:
@@ -71,6 +71,8 @@ MODULES:
     cis_align    CIS Benchmark v14.0 L1 alignment report (read-only audit)
     partition_check  Partition isolation + mount option check (read-only)
     auditd       auditd install + file integrity monitoring + privileged command audit
+    apparmor     AppArmor mandatory access control (enforce mode, profile management)
+    auto_updates Automatic security updates (unattended-upgrades / dnf-automatic / apk cron)
 
 EXAMPLES:
     mb init                        # Interactive, all modules with defaults
@@ -392,7 +394,7 @@ mb_cmd_audit() {
     mb_check_root
     mb_detect_os
 
-    local audit_modules=(cis_align partition_check auditd crowdsec)
+    local audit_modules=(cis_align partition_check auditd crowdsec apparmor auto_updates)
     local failed=0
 
     echo ""

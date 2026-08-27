@@ -18,7 +18,7 @@ TEST_DIR="/Volumes/D/mb-test/vps-bootstrap-modules"
 IMAGE="ubuntu:22.04"
 CONTAINER_NAME="mb-test-modules"
 
-MODULES=(system user ssh firewall crowdsec kernel autoupdate docker motd cis_align partition_check auditd)
+MODULES=(system user ssh firewall crowdsec kernel autoupdate docker motd cis_align partition_check auditd apparmor auto_updates)
 
 echo "=== Module Independence Test ==="
 echo "Image: ${IMAGE}"

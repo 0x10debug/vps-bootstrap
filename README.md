@@ -74,6 +74,8 @@ mb help                          # Show all commands
 | `cis_align` | CIS Benchmark v14.0 L1 alignment report (read-only audit) |
 | `partition_check` | Partition isolation + mount option check (read-only) |
 | `auditd` | auditd install + file integrity monitoring + privileged command audit |
+| `apparmor` | AppArmor mandatory access control: enforce mode, profile management, key service coverage audit |
+| `auto_updates` | Automatic security updates: unattended-upgrades (Debian), dnf-automatic (RHEL), apk cron (Alpine); reboot & email config |
 
 ## Configuration
 

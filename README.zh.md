@@ -74,6 +74,8 @@ mb help                          # 显示所有命令
 | `cis_align` | CIS Benchmark v14.0 L1 对齐报告（只读审计） |
 | `partition_check` | 分区隔离 + 挂载选项检查（只读） |
 | `auditd` | auditd 安装 + 关键文件完整性监控 + 特权命令审计 |
+| `apparmor` | AppArmor 强制访问控制：enforce 模式、profile 管理、关键服务覆盖审计 |
+| `auto_updates` | 自动安全更新：unattended-upgrades（Debian）、dnf-automatic（RHEL）、apk cron（Alpine）；重启与邮件配置 |
 
 ## 配置
 
