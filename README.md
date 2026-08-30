@@ -76,6 +76,7 @@ mb help                          # Show all commands
 | `auditd` | auditd install + file integrity monitoring + privileged command audit |
 | `apparmor` | AppArmor mandatory access control: enforce mode, profile management, key service coverage audit |
 | `auto_updates` | Automatic security updates: unattended-upgrades (Debian), dnf-automatic (RHEL), apk cron (Alpine); reboot & email config |
+| `tailscale` | Tailscale/Netbird mesh VPN: install, auth key, exit node, Tailscale SSH, accept-routes, ACL audit |
 
 ## Configuration
 

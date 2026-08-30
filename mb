@@ -10,7 +10,9 @@
 #   mb update                  Update mb and re-apply config
 #   mb export                  Export current configuration (for migration)
 #   mb rollback [module]       Rollback a module (or all) to previous config
-#   mb audit                   Run CIS + partition + auditd + crowdsec + apparmor + auto-updates checks (read-only)
+#   mb audit                   Run CIS + partition + auditd + crowdsec + apparmor + auto-updates + tailscale checks (read-only)
+#   mb eol-fix [OPTIONS]       Fix EOL distribution sources (Ubuntu/CentOS/Debian archive mirrors)
+#   mb alpine-check            Check Alpine Linux module compatibility
 #   mb help                    Show help
 
 set -euo pipefail
@@ -29,13 +31,17 @@ source "${MB_SCRIPT_DIR}/lib/os.sh"
 source "${MB_SCRIPT_DIR}/lib/backup.sh"
 # shellcheck source=lib/rollback.sh
 source "${MB_SCRIPT_DIR}/lib/rollback.sh"
+# shellcheck source=lib/alpine_support.sh
+source "${MB_SCRIPT_DIR}/lib/alpine_support.sh"
+# shellcheck source=lib/eol_fix.sh
+source "${MB_SCRIPT_DIR}/lib/eol_fix.sh"
 
 # Set module directory for loader
 mb_set_module_dir "${MB_SCRIPT_DIR}/modules"
 
 # ── All available modules (in recommended order) ────────────────────────────
 
-MB_ALL_MODULES=(system user ssh firewall crowdsec kernel autoupdate docker motd cis_align partition_check auditd apparmor auto_updates)
+MB_ALL_MODULES=(system user ssh firewall crowdsec kernel autoupdate docker motd cis_align partition_check auditd apparmor auto_updates tailscale)
 
 # ── Help ─────────────────────────────────────────────────────────────────────
 
@@ -49,7 +55,9 @@ USAGE:
     mb update                      Update mb and re-apply configuration
     mb export                      Export configuration for migration
     mb rollback [MODULE]           Rollback module (or all) to previous state
-    mb audit                       Run CIS + partition + auditd + crowdsec + apparmor + auto-updates checks (read-only)
+    mb audit                       Run CIS + partition + auditd + crowdsec + apparmor + auto-updates + tailscale checks (read-only)
+    mb eol-fix [OPTIONS]           Fix EOL distribution sources (--dry-run, --restore)
+    mb alpine-check                Check Alpine Linux module compatibility
     mb help                        Show this help
 
 OPTIONS for init:
@@ -73,6 +81,7 @@ MODULES:
     auditd       auditd install + file integrity monitoring + privileged command audit
     apparmor     AppArmor mandatory access control (enforce mode, profile management)
     auto_updates Automatic security updates (unattended-upgrades / dnf-automatic / apk cron)
+    tailscale    Tailscale/Netbird mesh VPN (install, auth, exit node, SSH, accept-routes)
 
 EXAMPLES:
     mb init                        # Interactive, all modules with defaults
@@ -394,7 +403,7 @@ mb_cmd_audit() {
     mb_check_root
     mb_detect_os
 
-    local audit_modules=(cis_align partition_check auditd crowdsec apparmor auto_updates)
+    local audit_modules=(cis_align partition_check auditd crowdsec apparmor auto_updates tailscale)
     local failed=0
 
     echo ""
@@ -430,6 +439,26 @@ mb_cmd_audit() {
     fi
 }
 
+# ── EOL fix ───────────────────────────────────────────────────────────────────
+
+mb_cmd_eol_fix() {
+    mb_check_root
+    mb_detect_os
+    mb_eol_fix_sources "$@"
+}
+
+# ── Alpine compatibility check ────────────────────────────────────────────────
+
+mb_cmd_alpine_check() {
+    mb_detect_os
+    if ! mb_alpine_is_alpine; then
+        mb_info "This system is not Alpine Linux (${MB_OS_DISTRO:-unknown} ${MB_OS_VERSION:-0})."
+        mb_info "Alpine compatibility check is only relevant on Alpine systems."
+        return 0
+    fi
+    mb_alpine_compat_report
+}
+
 # ── Main ─────────────────────────────────────────────────────────────────────
 
 main() {
@@ -437,12 +466,14 @@ main() {
     shift || true
 
     case "$command" in
-        init)     mb_cmd_init "$@" ;;
-        status)   mb_cmd_status "$@" ;;
-        update)   mb_cmd_update "$@" ;;
-        export)   mb_cmd_export "$@" ;;
-        rollback) mb_rollback "${1:-all}" ;;
-        audit)    mb_cmd_audit "$@" ;;
+        init)          mb_cmd_init "$@" ;;
+        status)        mb_cmd_status "$@" ;;
+        update)        mb_cmd_update "$@" ;;
+        export)        mb_cmd_export "$@" ;;
+        rollback)      mb_rollback "${1:-all}" ;;
+        audit)         mb_cmd_audit "$@" ;;
+        eol-fix)       mb_cmd_eol_fix "$@" ;;
+        alpine-check)  mb_cmd_alpine_check "$@" ;;
         help|-h|--help) mb_show_help ;;
         *) mb_die "Unknown command: $command. Run 'mb help' for usage." ;;
     esac

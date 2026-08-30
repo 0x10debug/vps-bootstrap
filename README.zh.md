@@ -76,6 +76,7 @@ mb help                          # 显示所有命令
 | `auditd` | auditd 安装 + 关键文件完整性监控 + 特权命令审计 |
 | `apparmor` | AppArmor 强制访问控制：enforce 模式、profile 管理、关键服务覆盖审计 |
 | `auto_updates` | 自动安全更新：unattended-upgrades（Debian）、dnf-automatic（RHEL）、apk cron（Alpine）；重启与邮件配置 |
+| `tailscale` | Tailscale/Netbird 网状 VPN：安装、auth key 认证、exit node、Tailscale SSH、accept-routes、ACL 审计 |
 
 ## 配置
 

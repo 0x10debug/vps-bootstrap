@@ -1,0 +1,94 @@
+{
+  "//": "Tailscale ACL configuration example — apply via admin console (https://login.tailscale.com/admin/acls)",
+  "//description": "Example ACL for a VPS fleet with tag-based access control. Assign tags to nodes in the admin console, then use them here.",
+
+  "tagOwners": {
+    "tag:server":    ["autogroup:admin"],
+    "tag:exit-node": ["autogroup:admin"],
+    "tag:dev":       ["autogroup:admin"],
+    "tag:ci":        ["autogroup:admin"]
+  },
+
+  "acls": [
+    {
+      "//": "Admins can access everything",
+      "action": "accept",
+      "src":    ["autogroup:admin"],
+      "dst":    ["*:*"]
+    },
+    {
+      "//": "Servers can talk to each other on common service ports",
+      "action": "accept",
+      "src":    ["tag:server"],
+      "dst":    [
+        "tag:server:22",
+        "tag:server:80",
+        "tag:server:443",
+        "tag:server:5432",
+        "tag:server:6379"
+      ]
+    },
+    {
+      "//": "Dev workstations can SSH to servers and dev nodes",
+      "action": "accept",
+      "src":    ["tag:dev"],
+      "dst":    [
+        "tag:server:22",
+        "tag:dev:*"
+      ]
+    },
+    {
+      "//": "CI runner can reach servers on HTTP/HTTPS only",
+      "action": "accept",
+      "src":    ["tag:ci"],
+      "dst":    [
+        "tag:server:80",
+        "tag:server:443"
+      ]
+    },
+    {
+      "//": "Everyone can use exit nodes for internet access",
+      "action": "accept",
+      "src":    ["autogroup:member"],
+      "dst":    ["tag:exit-node:*"]
+    }
+  ],
+
+  "ssh": [
+    {
+      "//": "Admins can SSH to any server via Tailscale SSH",
+      "action": "accept",
+      "src":    ["autogroup:admin"],
+      "dst":    ["tag:server"],
+      "users":  ["root", "deploy"]
+    },
+    {
+      "//": "Dev users can SSH to dev nodes only",
+      "action": "accept",
+      "src":    ["tag:dev"],
+      "dst":    ["tag:dev"],
+      "users":  ["deploy"]
+    }
+  ],
+
+  "nodeAttrs": [
+    {
+      "//": "Servers can advertise exit nodes and subnet routes",
+      "target": ["tag:server"],
+      "attr":   ["advertise-exit-node", "advertise-routes"]
+    }
+  ],
+
+  "tests": [
+    {
+      "src":  "tag:dev",
+      "accept": ["tag:server:22", "tag:dev:22"],
+      "deny":  ["tag:server:5432"]
+    },
+    {
+      "src":  "tag:ci",
+      "accept": ["tag:server:80", "tag:server:443"],
+      "deny":  ["tag:server:22"]
+    }
+  ]
+}
