@@ -269,10 +269,6 @@ mb_alpine_check_module_compat() {
             echo "compatible"
             return 0
             ;;
-        autoupdate)
-            echo "compatible"
-            return 0
-            ;;
         *)
             echo "unknown"
             return 2

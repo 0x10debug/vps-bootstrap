@@ -1,5 +1,7 @@
 # Secure Your VPS in One Command
 
+[![CI](https://github.com/0x10debug/vps-bootstrap/actions/workflows/ci.yml/badge.svg)](https://github.com/0x10debug/vps-bootstrap/actions/workflows/ci.yml)
+
 A single command to initialize a fresh VPS and harden it for production. Updates the system, creates a non-root user with SSH keys, hardens SSH, configures a firewall, installs CrowdSec intrusion prevention, tunes kernel parameters, enables automatic security updates, and installs Docker — all in one run. Built for Ubuntu, Debian, and Alpine servers.
 
 > **New to VPS security?** This tool applies industry-standard hardening automatically. No need to read a 50-page guide — just run `mb init` and your server goes from bare OS to production-ready in minutes.
@@ -68,7 +70,6 @@ mb help                          # Show all commands
 | `firewall` | UFW or nftables (deny incoming, allow outgoing, open SSH/HTTP/HTTPS) |
 | `crowdsec` | CrowdSec intrusion prevention: SSH/web/port-scan scenarios, firewall/nginx/Cloudflare bouncers, auditd log integration, email & webhook alerts |
 | `kernel` | BBR, file descriptors, network stack tuning |
-| `autoupdate` | Automatic security updates (Docker excluded) |
 | `docker` | Docker Engine + Compose v2 with log rotation |
 | `motd` | Status dashboard on every SSH login |
 | `cis_align` | CIS Benchmark v14.0 L1 alignment report (read-only audit) |
@@ -96,7 +97,7 @@ modules:
   firewall: true
   crowdsec: true
   kernel: true
-  autoupdate: true
+  auto_updates: true
   docker: true
   motd: true
 

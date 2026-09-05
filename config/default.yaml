@@ -9,7 +9,7 @@ modules:
   firewall: true
   crowdsec: true
   kernel: true
-  autoupdate: true
+  auto_updates: true
   docker: true
   motd: true
 

@@ -41,7 +41,7 @@ mb_set_module_dir "${MB_SCRIPT_DIR}/modules"
 
 # ── All available modules (in recommended order) ────────────────────────────
 
-MB_ALL_MODULES=(system user ssh firewall crowdsec kernel autoupdate docker motd cis_align partition_check auditd apparmor auto_updates tailscale)
+MB_ALL_MODULES=(system user ssh firewall crowdsec kernel docker motd cis_align partition_check auditd apparmor auto_updates tailscale)
 
 # ── Help ─────────────────────────────────────────────────────────────────────
 
@@ -73,7 +73,6 @@ MODULES:
     firewall     Firewall configuration (UFW or nftables)
     crowdsec     CrowdSec intrusion prevention (replaces fail2ban)
     kernel       Kernel parameter tuning (BBR, file descriptors, network)
-    autoupdate   Automatic security updates
     docker       Docker Engine + Docker Compose installation
     motd         MOTD status dashboard (shown on SSH login)
     cis_align    CIS Benchmark v14.0 L1 alignment report (read-only audit)

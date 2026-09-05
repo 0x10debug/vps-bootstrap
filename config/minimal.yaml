@@ -10,7 +10,7 @@ modules:
   firewall: true
   crowdsec: false
   kernel: false
-  autoupdate: false
+  auto_updates: false
   docker: false
   motd: false
 
