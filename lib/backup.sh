@@ -41,7 +41,8 @@ mb_backup_restore() {
         mb_error "No backup found for module: $module"
         return 1
     fi
-    local backup_file="${backup_dir}/$(basename "$file")"
+    local backup_file
+    backup_file="${backup_dir}/$(basename "$file")"
     if [ -f "$backup_file" ]; then
         cp -a "$backup_file" "$file"
         mb_success "Restored $file from $backup_file"
@@ -55,7 +56,8 @@ mb_backup_save_state() {
     # Save the current module state (which modules are done, current config)
     # Used before making changes, for rollback
     local module="$1"
-    local state_file="${MB_BACKUP_DIR}/${module}/state-$(date '+%Y%m%d-%H%M%S').yaml"
+    local state_file
+    state_file="${MB_BACKUP_DIR}/${module}/state-$(date '+%Y%m%d-%H%M%S').yaml"
     mkdir -p "${MB_BACKUP_DIR}/${module}"
 
     {

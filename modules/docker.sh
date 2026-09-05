@@ -32,18 +32,21 @@ mb_module_docker() {
 
 _mb_docker_install_debian() {
     mb_info "Installing Docker (Debian/Ubuntu)..."
+    local distro codename
+    distro=$(. /etc/os-release && echo "${ID}")
+    codename=$(. /etc/os-release && echo "${VERSION_CODENAME}")
 
     # Remove old Docker packages if present
     mb_pkg_remove docker docker-engine docker.io containerd runc 2>/dev/null || true
 
     # Add Docker's official GPG key
     install -m 0755 -d /etc/apt/keyrings
-    curl -fsSL https://download.docker.com/linux/$(. /etc/os-release && echo "$ID")/gpg \
+    curl -fsSL "https://download.docker.com/linux/${distro}/gpg" \
         | gpg --dearmor -o /etc/apt/keyrings/docker.gpg 2>/dev/null
     chmod a+r /etc/apt/keyrings/docker.gpg
 
     # Add Docker repository
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/$(. /etc/os-release && echo "$ID") $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/${distro} ${codename} stable" \
         > /etc/apt/sources.list.d/docker.list
 
     mb_pkg_update

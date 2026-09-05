@@ -116,14 +116,21 @@ mb_rollback_list() {
     mb_step "Available rollback points:"
     for mod_dir in "$MB_BACKUP_DIR"/*/; do
         [ -d "$mod_dir" ] || continue
-        local mod_name
+        local mod_name entry base count i
         mod_name=$(basename "$mod_dir")
-        local backups
-        backups=$(ls -1 "$mod_dir" 2>/dev/null | grep -v '^state-' | wc -l | tr -d ' ')
-        if [ "$backups" -gt 0 ]; then
-            mb_detail "$mod_name: $backups backup(s)"
-            ls -1 "$mod_dir" | grep -v '^state-' | sort -r | head -3 | while read -r ts; do
-                echo "    - $ts"
+        local -a entries=()
+        for entry in "$mod_dir"/*; do
+            [ -e "$entry" ] || continue
+            base=$(basename "$entry")
+            case "$base" in state-*) continue ;; esac
+            entries+=("$base")
+        done
+        count=${#entries[@]}
+        if [ "$count" -gt 0 ]; then
+            mb_detail "$mod_name: $count backup(s)"
+            # Entries are timestamp-named, so glob order is chronological; list newest first.
+            for ((i = count - 1; i >= 0 && i >= count - 3; i--)); do
+                echo "    - ${entries[$i]}"
             done
         fi
     done

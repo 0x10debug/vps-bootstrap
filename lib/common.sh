@@ -6,10 +6,11 @@ set -euo pipefail
 
 # ── Constants ────────────────────────────────────────────────────────────────
 
+# Version is printed by the mb entrypoint after sourcing this file.
+# shellcheck disable=SC2034
 MB_VERSION="0.1.0"
 MB_BACKUP_DIR="/etc/mb-backup"
 MB_STATE_DIR="/var/lib/mb"
-MB_LOG_DIR="/var/log/mb"
 MB_CONFIG_DIR="/etc/mb"
 MB_ENV_FILE="${MB_CONFIG_DIR}/env.sh"
 
