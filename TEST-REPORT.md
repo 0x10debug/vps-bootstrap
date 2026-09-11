@@ -69,3 +69,40 @@ Untested (honest boundaries):
   dry-run proves selection, not module behavior.
 - Interactive-mode behavior with profiles (non-interactive is forced by
   --profile) not re-tested beyond the dry-run path.
+
+---
+
+## 2026-09-11T19:37:03Z — commit e0bae4a (Round 2 Day 12: iter/bootstrap-rhel-family)
+
+**Layers executed: L1, L2, L3 (real module execution on Rocky 9 + Debian regression suites). L4 not run.**
+
+| Check | Result |
+|---|---|
+| L1 bash -n + shellcheck gate (mb, lib/, 7 touched modules) | PASS |
+| L3 Rocky 9 container: OS detection (rhel/dnf), fail-fast on Rocky 8, minimal-profile selection, REAL system-module execution: all base packages installed (sudo/jq/chrony/gnupg2/policycoreutils-python-utils/htop/curl-minimal/weg/git), timezone set, exit 0 | PASS |
+| L3 Debian regression: tests/test-modules.sh 14/14; tests/test-idempotent.sh 3x full init, all DONE and idempotent (errexit change does not break the Debian flow) | PASS |
+
+Defects found and fixed in this cycle (all caught by actually executing
+the module on Rocky 9, none visible to static gates):
+
+1. **Silent module-failure swallowing** (all distros, high severity): the
+   init dispatcher ran modules under `if ! func`, which suppresses errexit
+   for the entire call chain - a failed package batch still marked the
+   module done ("Succeeded: 1" with nothing installed). Modules now run in
+   a subshell outside condition context with set -e enforced, exit code
+   captured and reported.
+2. `dnf/yum check-update` exit 100 (updates available) misread as failure
+   in mb_pkg_update; normalized to success.
+3. Rocky 9 curl-minimal vs curl package conflict broke the base-tool
+   batch (also hidden by defect 1); tools are now family-specific, EPEL
+   enables htop with metadata refresh, and timezone setup requires a
+   running systemd bus rather than the mere presence of timedatectl.
+
+Untested (honest boundaries):
+
+- firewalld, crowdsec rpm, docker dnf, and motd.d branches were reviewed
+  and syntax-verified but not executed end-to-end (no systemd in the test
+  containers; docker install not pulled to keep the cycle time-boxed) -
+  recorded as implemented_unverified at runtime.
+- L4 host-level (SSH survival across firewalld/SELinux port changes on a
+  real RHEL host) not run - blocked on a disposable VM.
