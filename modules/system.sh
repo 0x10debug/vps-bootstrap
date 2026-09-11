@@ -14,9 +14,11 @@ mb_module_system() {
         fi
     fi
 
-    # Backup sources.list (debian)
+    # Backup package-source config (debian: sources.list, rhel: repo files)
     if [ "$MB_OS_FAMILY" = "debian" ]; then
         mb_backup_file /etc/apt/sources.list system
+    elif [ "$MB_OS_FAMILY" = "rhel" ]; then
+        mb_backup_dir /etc/yum.repos.d system
     fi
 
     # Update package lists
@@ -27,17 +29,31 @@ mb_module_system() {
     mb_info "Upgrading installed packages..."
     mb_pkg_upgrade
 
-    # Install base tools
+    # Install base tools (family-aware: gnupg/lsb-release are Debian names,
+    # RHEL uses gnupg2 and has no lsb-release; htop comes from EPEL on the
+    # RHEL family). RHEL minimal images ship curl-minimal, which conflicts
+    # with the full curl package, so curl is family-specific below.
     local base_tools=(
-        curl wget git vim htop tmux
-        ca-certificates gnupg lsb-release
+        wget git vim tmux
+        ca-certificates
         unzip jq chrony
     )
 
     # Add OS-specific tools
     case "$MB_OS_FAMILY" in
-        debian) base_tools+=(sudo ufw software-properties-common) ;;
-        alpine) base_tools+=(sudo) ;;
+        debian) base_tools+=(curl sudo ufw htop gnupg lsb-release software-properties-common) ;;
+        alpine) base_tools+=(curl sudo htop) ;;
+        rhel)
+            base_tools+=(curl-minimal sudo gnupg2 policycoreutils-python-utils)
+            # htop lives in EPEL; the clones ship epel-release in their
+            # extras repo (plain RHEL needs a subscribed repo instead, so
+            # htop is skipped there). Refresh metadata after enabling so
+            # the batch install below can resolve EPEL packages.
+            if [ "$MB_OS_DISTRO" != "rhel" ] && dnf install -y -q epel-release >/dev/null 2>&1; then
+                base_tools+=(htop)
+                dnf -q makecache >/dev/null 2>&1 || true
+            fi
+            ;;
     esac
 
     mb_info "Installing base tools..."
@@ -48,8 +64,10 @@ mb_module_system() {
     if [ -z "$timezone" ]; then
         timezone=$(mb_ask_value "Enter timezone" "UTC")
     fi
-    if [ "$MB_OS_FAMILY" = "debian" ]; then
-        if mb_check_command timedatectl; then
+    if [ "$MB_OS_FAMILY" = "debian" ] || [ "$MB_OS_FAMILY" = "rhel" ]; then
+        # timedatectl needs a running systemd bus - its binary can exist
+        # (e.g. in containers) without the bus being up.
+        if [ -d /run/systemd/system ] && mb_check_command timedatectl; then
             timedatectl set-timezone "$timezone"
         else
             ln -sf "/usr/share/zoneinfo/${timezone}" /etc/localtime

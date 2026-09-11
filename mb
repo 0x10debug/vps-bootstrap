@@ -193,7 +193,7 @@ mb_cmd_init() {
     # Detect OS
     mb_detect_os
     if ! mb_supports_os; then
-        mb_die "Unsupported OS: ${MB_OS_DISTRO} ${MB_OS_VERSION}. Supported: Ubuntu 22.04+, Debian 12+, Alpine 3.22+."
+        mb_die "Unsupported OS: ${MB_OS_DISTRO} ${MB_OS_VERSION}. Supported: Ubuntu 22.04+, Debian 12+, Alpine 3.22+, RHEL family 9+ (Rocky/Alma/RHEL)."
     fi
 
     # Resolve profile to its config file (a profile is a bundled config)
@@ -299,10 +299,19 @@ mb_cmd_init() {
             continue
         fi
 
-        # Call the module function
+        # Call the module function with errexit enforced. A subshell under
+        # `if !` would suppress set -e for the ENTIRE call chain (mid-module
+        # failures like a failed package batch were silently swallowed), so
+        # the subshell runs outside any condition context and its rc is
+        # captured explicitly.
         local func_name="mb_module_${mod}"
-        if ! "$func_name"; then
-            mb_error "Module failed: $mod"
+        local module_rc=0
+        set +e
+        ( set -e; "$func_name" )
+        module_rc=$?
+        set -e
+        if [ "$module_rc" -ne 0 ]; then
+            mb_error "Module failed: $mod (exit $module_rc)"
             failed=$((failed + 1))
         fi
     done

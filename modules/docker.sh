@@ -11,6 +11,7 @@ mb_module_docker() {
         case "$MB_OS_FAMILY" in
             debian) _mb_docker_install_debian ;;
             alpine) _mb_docker_install_alpine ;;
+            rhel) _mb_docker_install_rhel ;;
             *) mb_die "Docker installation not supported for OS: $MB_OS_FAMILY" ;;
         esac
     fi
@@ -63,6 +64,29 @@ _mb_docker_install_alpine() {
     mb_service_restart docker
 
     mb_detail "Docker installed from Alpine community repo"
+}
+
+_mb_docker_install_rhel() {
+    mb_info "Installing Docker (RHEL family)..."
+    local repo_distro
+    repo_distro=$(. /etc/os-release && echo "${ID}")
+    case "$repo_distro" in
+        centos|rocky|almalinux|rhel|fedora) ;;
+        *) repo_distro="centos" ;;
+    esac
+
+    mb_pkg_remove docker docker-engine podman-docker containerd runc 2>/dev/null || true
+
+    mb_pkg_install dnf-plugins-core
+    dnf -y config-manager --add-repo "https://download.docker.com/linux/${repo_distro}/docker-ce.repo" \
+        || mb_die "Could not add the Docker repository for ${repo_distro}"
+    mb_pkg_update
+    mb_pkg_install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+    mb_service_enable docker
+    mb_service_restart docker
+
+    mb_detail "Docker installed from download.docker.com (${repo_distro} repo)"
 }
 
 # ── Configuration ────────────────────────────────────────────────────────────

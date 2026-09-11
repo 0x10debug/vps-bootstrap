@@ -66,6 +66,7 @@ mb_module_crowdsec() {
         case "$MB_OS_FAMILY" in
             debian) _mb_crowdsec_install_debian ;;
             alpine) _mb_crowdsec_install_alpine ;;
+            rhel) _mb_crowdsec_install_rhel ;;
             *) mb_die "CrowdSec installation not supported for OS: $MB_OS_FAMILY" ;;
         esac
     fi
@@ -277,6 +278,20 @@ _mb_crowdsec_install_debian() {
     mb_detail "CrowdSec installed from official repository"
 }
 
+_mb_crowdsec_install_rhel() {
+    mb_info "Installing CrowdSec (RHEL family)..."
+
+    # The official installer registers the CrowdSec rpm repository for
+    # dnf/yum-based distributions (it maps the distro to the right repo).
+    curl -fsSL https://install.crowdsec.net \
+        | sh 2>/dev/null || mb_die "Could not register the CrowdSec rpm repository"
+
+    mb_pkg_update
+    mb_pkg_install crowdsec
+
+    mb_detail "CrowdSec installed from official rpm repository"
+}
+
 _mb_crowdsec_install_alpine() {
     mb_info "Installing CrowdSec (Alpine)..."
     # CrowdSec on Alpine — use the install script as fallback
@@ -411,6 +426,11 @@ _mb_crowdsec_install_firewall_bouncer() {
             if ! mb_check_package crowdsec-firewall-bouncer-nftables; then
                 mb_pkg_install crowdsec-firewall-bouncer-nftables
             fi
+            ;;
+        rhel)
+            # The rpm repo registered by _mb_crowdsec_install_rhel ships the
+            # nftables bouncer (nftables is the RHEL 9 default backend).
+            mb_pkg_install crowdsec-firewall-bouncer-nftables
             ;;
         alpine)
             # Use the bouncer install script

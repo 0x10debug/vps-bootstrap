@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# modules/firewall.sh — Firewall configuration (UFW on Debian, nftables on Alpine)
+# modules/firewall.sh — Firewall configuration (UFW on Debian, nftables on
+# Alpine, firewalld on the RHEL family)
 
 mb_module_firewall() {
     mb_step "Firewall configuration"
@@ -14,6 +15,7 @@ mb_module_firewall() {
     case "$MB_OS_FAMILY" in
         debian) _mb_firewall_ufw "$ssh_port" ;;
         alpine) _mb_firewall_nftables "$ssh_port" ;;
+        rhel) _mb_firewall_firewalld "$ssh_port" ;;
         *) mb_die "Firewall configuration not supported for OS: $MB_OS_FAMILY" ;;
     esac
 
@@ -129,4 +131,55 @@ NFTABLES
     mb_detail "nftables configured with SSH port ${ssh_port}, HTTP, HTTPS allowed"
 
     mb_env_set MB_FIREWALL "nftables"
+}
+
+# ── firewalld (RHEL family: Rocky, Alma, RHEL) ───────────────────────────────
+
+_mb_firewall_firewalld() {
+    local ssh_port="$1"
+
+    mb_pkg_install firewalld
+
+    # SELinux: register a non-default SSH port so logins survive the port
+    # change (no-op on systems without SELinux).
+    if [ "$ssh_port" != "22" ]; then
+        if command -v getenforce >/dev/null 2>&1 && [ "$(getenforce 2>/dev/null)" != "Disabled" ]; then
+            mb_pkg_install policycoreutils-python-utils
+            semanage port -a -t ssh_port_t -p tcp "$ssh_port" 2>/dev/null \
+                || semanage port -m -t ssh_port_t -p tcp "$ssh_port" 2>/dev/null \
+                || mb_warn "Could not register SELinux SSH port ${ssh_port}; add it manually if SELinux denies logins"
+        fi
+    fi
+
+    mb_backup_dir /etc/firewalld firewall
+
+    mb_info "Configuring firewalld (public zone)..."
+    mb_service_enable firewalld
+    mb_service_restart firewalld
+
+    # Unlike the UFW branch, firewalld rules are added idempotently instead of
+    # resetting the firewall: a wipe here can cut an operator's session if any
+    # pre-existing custom rule mattered. Unmatched traffic stays dropped by
+    # the public zone default.
+    firewall-cmd --permanent --add-service=ssh >/dev/null
+    if [ "$ssh_port" != "22" ]; then
+        firewall-cmd --permanent --add-port="${ssh_port}/tcp" >/dev/null
+        mb_detail "Allowed SSH on non-default port ${ssh_port}"
+    fi
+    firewall-cmd --permanent --add-service=http >/dev/null
+    firewall-cmd --permanent --add-service=https >/dev/null
+
+    local extra_ports="${MB_CONFIG_EXTRA_PORTS:-}"
+    if [ -n "$extra_ports" ]; then
+        local port
+        for port in $extra_ports; do
+            firewall-cmd --permanent --add-port="${port}" >/dev/null
+            mb_detail "Allowed port: $port"
+        done
+    fi
+
+    firewall-cmd --reload >/dev/null
+    firewall-cmd --list-all
+
+    mb_env_set MB_FIREWALL "firewalld"
 }

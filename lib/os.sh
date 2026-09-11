@@ -62,10 +62,17 @@ mb_require_os() {
 }
 
 mb_supports_os() {
-    # Check if current OS is supported (debian or alpine for MVP)
+    # Supported: Debian family (Ubuntu 22.04+, Debian 12+), Alpine 3.22+,
+    # RHEL family (Rocky/Alma/RHEL 9+; 8 is out of the support matrix).
     case "${MB_OS_FAMILY:-}" in
         debian) return 0 ;;
         alpine) return 0 ;;
+        rhel)
+            if [ "${MB_OS_VERSION:-0}" -ge 9 ] 2>/dev/null; then
+                return 0
+            fi
+            return 1
+            ;;
         *) return 1 ;;
     esac
 }
@@ -73,13 +80,23 @@ mb_supports_os() {
 # ── Package manager abstraction ──────────────────────────────────────────────
 
 mb_pkg_update() {
+    # dnf/yum check-update exits 100 when updates are AVAILABLE - that is
+    # success semantics for a package-list refresh, not an error.
+    local rc=0
     case "$MB_PKG_MGR" in
         apt) apt-get update -qq ;;
         apk) apk update --quiet ;;
-        dnf) dnf check-update -q ;;
-        yum) yum check-update -q ;;
+        dnf)
+            dnf check-update -q || rc=$?
+            [ "$rc" -eq 100 ] && rc=0
+            ;;
+        yum)
+            yum check-update -q || rc=$?
+            [ "$rc" -eq 100 ] && rc=0
+            ;;
         *) mb_die "Unknown package manager: $MB_PKG_MGR" ;;
     esac
+    return "$rc"
 }
 
 mb_pkg_upgrade() {
