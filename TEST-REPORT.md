@@ -45,3 +45,27 @@ Untested (honest boundaries):
 - L4 host-level: SSH/firewall/kernel behavior on a real host not run - no
   disposable VM provisioned; blocked, not passed. Container tests do not
   exercise SSH survival or firewall semantics.
+
+---
+
+## 2026-09-11T18:38:22Z — commit eb1f9bf (Round 2 Day 12: iter/bootstrap-profiles)
+
+**Layers executed: L1, L2, L3. L4 not run.**
+
+| Check | Result |
+|---|---|
+| L1 bash -n (mb + all scripts) | PASS |
+| L1 shellcheck -S warning gate (mb after --profile additions) | PASS (0 findings) |
+| L2 profile YAML files parse (3 presets) | PASS (same loader as config files) |
+| L3 Docker ubuntu:22.04, mb init --dry-run module resolution: minimal=4, standard=11, strict=14 modules; --module overrides profile; config/minimal.yaml toggles yield 4; unknown profile errors listing available; non-boolean toggle errors | PASS (7/7 cases) |
+
+Defects found this cycle: none new. (Pre-existing finding addressed by this
+iteration: config module toggles were parsed but never consumed - the
+standard profile now makes them meaningful; fixed in eb1f9bf.)
+
+Untested (honest boundaries):
+
+- No module was actually executed with a profile on a real host (L4);
+  dry-run proves selection, not module behavior.
+- Interactive-mode behavior with profiles (non-interactive is forced by
+  --profile) not re-tested beyond the dry-run path.
