@@ -106,3 +106,35 @@ Untested (honest boundaries):
   recorded as implemented_unverified at runtime.
 - L4 host-level (SSH survival across firewalld/SELinux port changes on a
   real RHEL host) not run - blocked on a disposable VM.
+
+---
+
+## 2026-09-11T19:49:28Z — commit dc5ab22 (Round 2 Day 12: iter/bootstrap-wireguard)
+
+**Layers executed: L1, L2, L3 (real module execution). L4 not run.**
+
+| Check | Result |
+|---|---|
+| L1 bash -n + shellcheck gate (wireguard.sh + full repo) | PASS |
+| L3 Ubuntu 22.04 container, real single-module run (`mb init --module wireguard`, the documented recovery path): succeeds; /etc/wireguard/{server,clients/client1}.{key,pub} + wg0.conf + client1.conf all 0600; both keypairs verify (wg pubkey == .pub); conf fields correct (ListenPort 51820, client peer PublicKey+Endpoint); keys stable across re-runs (idempotent) | PASS (9/9 assertions) |
+| L3 tests/test-modules.sh with wireguard registered | PASS (15/15 modules) |
+
+Defects found and fixed in this cycle:
+
+- The 'wireguard' meta-package pulls DKMS kernel modules that fail where
+  the kernel ships WireGuard built in; module installs wireguard-tools per
+  family instead.
+- Single-module runs without 'system' first failed to locate packages
+  (stale/absent package lists); the installer now refreshes lists and
+  retries once - the documented `mb init --module <name>` recovery path
+  works standalone.
+
+Untested (honest boundaries):
+
+- Tunnel bring-up (`wg-quick up`) not exercised - no TUN device in the
+  test container; NAT MASQUERADE and handshake behavior unverified.
+- Alpine (apk wireguard-tools-wg) and RHEL (dnf wireguard-tools) install
+  branches reviewed but not executed in their containers this cycle.
+- L4 host-level: real handshake, client internet routing via the VPS, and
+  firewall co-existence with modules/firewall.sh on a live host - blocked
+  on a disposable VM.
