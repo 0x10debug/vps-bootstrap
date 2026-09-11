@@ -1,0 +1,56 @@
+# mb standard profile — recommended daily-driver setup
+# Use with: mb init --profile standard
+# Everything in minimal, plus CrowdSec intrusion prevention, kernel tuning,
+# Docker, the MOTD dashboard, CIS alignment and partition audits (read-only),
+# and automatic security updates. Auditd/AppArmor and the mesh VPN stay
+# opt-in because they change more system behavior.
+
+modules:
+  system: true
+  user: true
+  ssh: true
+  firewall: true
+  crowdsec: true
+  kernel: true
+  docker: true
+  motd: true
+  cis_align: true
+  partition_check: true
+  auditd: false
+  apparmor: false
+  auto_updates: true
+  tailscale: false
+
+# System settings
+timezone: UTC
+hostname: ""
+
+# User settings
+username: ""
+ssh_key: ""
+sudo_nopasswd: false
+
+# SSH settings
+ssh_port: ""
+allow_users: ""
+
+# Firewall settings
+extra_ports: []
+
+# CrowdSec settings
+crowdsec_whitelist_ip: ""
+cloudflare_bouncer: false
+
+# Kernel settings
+enable_bbr: true
+enable_tcp_fast_open: false
+disable_ipv6: false
+
+# Docker settings
+docker_data_dir: ""
+docker_log_max_size: "50m"
+docker_log_max_file: 3
+
+# Auto-update settings
+auto_reboot: false
+update_notification_webhook: ""

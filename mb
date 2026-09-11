@@ -63,6 +63,7 @@ USAGE:
 OPTIONS for init:
     --config FILE                  Use declarative config file (YAML-like)
     --module LIST                  Run only specified modules (comma-separated)
+    --profile NAME                 Use a bundled preset: minimal | standard | strict
     --yes                          Accept all defaults (non-interactive)
     --dry-run                      Show what would be done without executing
 
@@ -84,6 +85,7 @@ MODULES:
 
 EXAMPLES:
     mb init                        # Interactive, all modules with defaults
+    mb init --profile minimal      # Preset: system, user, ssh, firewall
     mb init --module system,ssh    # Only system update and SSH hardening
     mb init --config my-vps.yaml   # Declarative, no interaction
     mb status                      # See what's done and what's pending
@@ -151,6 +153,7 @@ mb_cmd_status() {
 mb_cmd_init() {
     local config_file=""
     local module_list=""
+    local profile_name=""
     local non_interactive=false
     local dry_run=false
 
@@ -163,6 +166,10 @@ mb_cmd_init() {
                 ;;
             --module)
                 module_list="$2"
+                shift 2
+                ;;
+            --profile)
+                profile_name="$2"
                 shift 2
                 ;;
             --yes|-y)
@@ -189,6 +196,18 @@ mb_cmd_init() {
         mb_die "Unsupported OS: ${MB_OS_DISTRO} ${MB_OS_VERSION}. Supported: Ubuntu 22.04+, Debian 12+, Alpine 3.22+."
     fi
 
+    # Resolve profile to its config file (a profile is a bundled config)
+    if [ -n "$profile_name" ]; then
+        local profile_file="${MB_SCRIPT_DIR}/config/profiles/${profile_name}.yaml"
+        if [ ! -f "$profile_file" ]; then
+            local available
+            available=$(find "${MB_SCRIPT_DIR}/config/profiles" -name '*.yaml' -exec basename {} .yaml \; 2>/dev/null | sort | tr '\n' ' ')
+            mb_die "Unknown profile: $profile_name (available: ${available:-none})"
+        fi
+        mb_info "Profile: $profile_name"
+        config_file="$profile_file"
+    fi
+
     # Load config file if provided
     if [ -n "$config_file" ]; then
         if [ ! -f "$config_file" ]; then
@@ -199,7 +218,9 @@ mb_cmd_init() {
         non_interactive=true
     fi
 
-    # Determine which modules to run
+    # Determine which modules to run.
+    # Priority: explicit --module list > module toggles from the loaded
+    # config/profile (modules.<name>: true|false) > all modules.
     local modules_to_run=()
     if [ -n "$module_list" ]; then
         IFS=',' read -ra modules_to_run <<< "$module_list"
@@ -217,7 +238,23 @@ mb_cmd_init() {
             fi
         done
     else
-        modules_to_run=("${MB_ALL_MODULES[@]}")
+        local toggle_key toggle_val
+        for mod in "${MB_ALL_MODULES[@]}"; do
+            toggle_key="MB_CONFIG_$(echo "$mod" | tr '[:lower:]' '[:upper:]')"
+            toggle_val="${!toggle_key:-}"
+            if [ -z "$toggle_val" ]; then
+                continue
+            fi
+            case "$toggle_val" in
+                true|yes|1) modules_to_run+=("$mod") ;;
+                false|no|0) ;;
+                *) mb_die "Invalid module toggle for '$mod': '$toggle_val' (expected true/false)" ;;
+            esac
+        done
+        if [ ${#modules_to_run[@]} -eq 0 ]; then
+            # No toggles present in the config: default to everything.
+            modules_to_run=("${MB_ALL_MODULES[@]}")
+        fi
     fi
 
     # Banner

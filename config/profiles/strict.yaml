@@ -1,0 +1,56 @@
+# mb strict profile — maximum hardening
+# Use with: mb init --profile strict
+# Every module enabled: the standard baseline plus auditd file-integrity
+# monitoring, AppArmor enforcement, Tailscale mesh VPN (out-of-band access),
+# and automatic reboots for kernel security updates. Review the Tailscale
+# auth requirements before running: the module prompts for an auth key.
+
+modules:
+  system: true
+  user: true
+  ssh: true
+  firewall: true
+  crowdsec: true
+  kernel: true
+  docker: true
+  motd: true
+  cis_align: true
+  partition_check: true
+  auditd: true
+  apparmor: true
+  auto_updates: true
+  tailscale: true
+
+# System settings
+timezone: UTC
+hostname: ""
+
+# User settings
+username: ""
+ssh_key: ""
+sudo_nopasswd: false
+
+# SSH settings
+ssh_port: ""
+allow_users: ""
+
+# Firewall settings
+extra_ports: []
+
+# CrowdSec settings
+crowdsec_whitelist_ip: ""
+cloudflare_bouncer: false
+
+# Kernel settings
+enable_bbr: true
+enable_tcp_fast_open: false
+disable_ipv6: false
+
+# Docker settings
+docker_data_dir: ""
+docker_log_max_size: "50m"
+docker_log_max_file: 3
+
+# Auto-update settings
+auto_reboot: true
+update_notification_webhook: ""

@@ -1,0 +1,37 @@
+# mb minimal profile — essentials only
+# Use with: mb init --profile minimal
+# Initializes the system, a non-root user, SSH hardening, and the firewall.
+# Skips CrowdSec, Docker, kernel tuning, audits, mesh VPN, and auto-updates.
+# For a custom setup, copy config/example.yaml and run mb init --config.
+
+modules:
+  system: true
+  user: true
+  ssh: true
+  firewall: true
+  crowdsec: false
+  kernel: false
+  docker: false
+  motd: false
+  cis_align: false
+  partition_check: false
+  auditd: false
+  apparmor: false
+  auto_updates: false
+  tailscale: false
+
+# System settings
+timezone: UTC
+hostname: ""
+
+# User settings
+username: ""
+ssh_key: ""
+sudo_nopasswd: false
+
+# SSH settings
+ssh_port: ""
+allow_users: ""
+
+# Firewall settings
+extra_ports: []

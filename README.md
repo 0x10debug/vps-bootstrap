@@ -47,11 +47,24 @@ mb init
 
 That's it. Answer the prompts (or accept defaults) and your server is hardened.
 
+Prefer a preset? Pick a profile instead of answering prompts:
+
+```bash
+mb init --profile minimal   # system, user, ssh, firewall — the essentials
+mb init --profile standard  # + CrowdSec, kernel tuning, Docker, audits, auto-updates
+mb init --profile strict    # + auditd, AppArmor, Tailscale mesh VPN, auto-reboot
+```
+
+Module selection resolves in priority order: an explicit `--module` list wins
+over module toggles in a config file (`--config` / `--profile`), and a config
+without toggles runs everything.
+
 ## Usage
 
 ```bash
 mb init                          # Interactive setup (all modules, safe defaults)
 mb init --module system,ssh      # Only run specific modules
+mb init --profile standard      # Preset: minimal/standard/strict
 mb init --config my-vps.yaml     # Declarative config (no interaction)
 mb status                        # Check what's hardened and what's pending
 mb rollback ssh                  # Undo SSH changes (or 'mb rollback all')
