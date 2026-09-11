@@ -243,7 +243,7 @@ mb_alpine_check_module_compat() {
     local module="$1"
 
     case "$module" in
-        system|user|ssh|firewall|kernel|motd|tailscale)
+        system|user|ssh|firewall|kernel|motd|tailscale|wireguard)
             echo "compatible"
             return 0
             ;;

@@ -91,6 +91,7 @@ mb help                          # Show all commands
 | `apparmor` | AppArmor mandatory access control: enforce mode, profile management, key service coverage audit |
 | `auto_updates` | Automatic security updates: unattended-upgrades (Debian), dnf-automatic (RHEL), apk cron (Alpine); reboot & email config |
 | `tailscale` | Tailscale/Netbird mesh VPN: install, auth key, exit node, Tailscale SSH, accept-routes, ACL audit |
+| `wireguard` | Self-hosted WireGuard VPN: server mode (keys, wg0.conf, IP forwarding, firewall port, client configs + QR) or client mode (endpoint + server key); no third-party coordination service |
 
 ## Configuration
 
